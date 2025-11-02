@@ -1,60 +1,66 @@
-"""AES-128-CBC encryption with PKCS#7 padding using cryptography library."""
+"""AES-128-ECB encryption with PKCS#7 padding (as per assignment spec)."""
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
-import os
-
-def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
-    """Apply PKCS#7 padding to data."""
-    padder = padding.PKCS7(block_size * 8).padder()
-    return padder.update(data) + padder.finalize()
-
-def pkcs7_unpad(data: bytes, block_size: int = 16) -> bytes:
-    """Remove PKCS#7 padding from data."""
-    unpadder = padding.PKCS7(block_size * 8).unpadder()
-    return unpadder.update(data) + unpadder.finalize()
+import hashlib
 
 def aes_encrypt(plaintext: bytes, key: bytes) -> bytes:
     """
-    Encrypt plaintext using AES-128-CBC.
-    Returns: IV (16 bytes) + ciphertext
+    Encrypt plaintext using AES-128-ECB with PKCS#7 padding.
+    
+    Args:
+        plaintext: Data to encrypt
+        key: 16-byte AES key (or will be derived via SHA-256)
+    
+    Returns:
+        Ciphertext bytes (no IV needed for ECB)
     """
+    # Ensure key is exactly 16 bytes
     if len(key) != 16:
-        raise ValueError("AES-128 requires 16-byte key")
+        key = hashlib.sha256(key).digest()[:16]
     
-    # Generate random IV
-    iv = os.urandom(16)
+    # Apply PKCS#7 padding
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(plaintext) + padder.finalize()
     
-    # Pad plaintext
-    padded = pkcs7_pad(plaintext)
-    
-    # Encrypt
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    # Encrypt with AES-128-ECB
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.ECB(),  # ECB mode as per assignment
+        backend=default_backend()
+    )
     encryptor = cipher.encryptor()
-    ciphertext = encryptor.update(padded) + encryptor.finalize()
+    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
     
-    # Return IV + ciphertext
-    return iv + ciphertext
+    return ciphertext
 
-def aes_decrypt(data: bytes, key: bytes) -> bytes:
+
+def aes_decrypt(ciphertext: bytes, key: bytes) -> bytes:
     """
-    Decrypt data using AES-128-CBC.
-    Expects: IV (16 bytes) + ciphertext
+    Decrypt ciphertext using AES-128-ECB with PKCS#7 padding.
+    
+    Args:
+        ciphertext: Encrypted data
+        key: 16-byte AES key
+    
+    Returns:
+        Plaintext bytes
     """
+    # Ensure key is exactly 16 bytes
     if len(key) != 16:
-        raise ValueError("AES-128 requires 16-byte key")
+        key = hashlib.sha256(key).digest()[:16]
     
-    if len(data) < 16:
-        raise ValueError("Invalid ciphertext: too short")
-    
-    # Extract IV and ciphertext
-    iv = data[:16]
-    ciphertext = data[16:]
-    
-    # Decrypt
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    # Decrypt with AES-128-ECB
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.ECB(),
+        backend=default_backend()
+    )
     decryptor = cipher.decryptor()
-    padded = decryptor.update(ciphertext) + decryptor.finalize()
+    padded_plaintext = decryptor.update(ciphertext) + decryptor.finalize()
     
-    # Remove padding
-    return pkcs7_unpad(padded)
+    # Remove PKCS#7 padding
+    unpadder = padding.PKCS7(128).unpadder()
+    plaintext = unpadder.update(padded_plaintext) + unpadder.finalize()
+    
+    return plaintext

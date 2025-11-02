@@ -1,6 +1,7 @@
 """Classic Diffie-Hellman helpers and key derivation."""
 import hashlib
 import secrets
+from cryptography.hazmat.primitives.asymmetric import dh
 
 # Safe 2048-bit prime (RFC 3526 Group 14)
 DH_PRIME = int(
@@ -47,3 +48,6 @@ def derive_aes_key(shared_secret: int) -> bytes:
     # Hash and truncate to 16 bytes
     hash_digest = hashlib.sha256(secret_bytes).digest()
     return hash_digest[:16]
+
+# In crypto/dh.py - Use proper library
+parameters = dh.generate_parameters(generator=2, key_size=2048)

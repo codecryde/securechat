@@ -10,6 +10,7 @@ import hashlib
 import threading
 from datetime import datetime
 from dotenv import load_dotenv
+import logging
 
 from app.common.protocol import *
 from app.common.utils import now_ms, b64e, b64d, sha256_hex
@@ -19,6 +20,7 @@ from app.crypto.aes import aes_encrypt, aes_decrypt
 from app.crypto.sign import sign_data, verify_signature
 from app.storage.transcript import Transcript
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 load_dotenv()
 
 class SecureChatClient:
@@ -429,6 +431,17 @@ class SecureChatClient:
         """Close connection."""
         if self.socket:
             self.socket.close()
+    
+    def validate_config():
+        """Ensure required files and settings exist."""
+        required_files = [
+            os.getenv('CA_CERT_PATH'),
+            os.getenv('SERVER_CERT_PATH'),
+            os.getenv('SERVER_KEY_PATH')
+        ]
+        for file in required_files:
+            if not os.path.exists(file):
+                raise FileNotFoundError(f"Required file missing: {file}")
 
 
 def main():
